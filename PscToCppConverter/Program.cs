@@ -2,7 +2,6 @@
 using System.Xml;
 using System.IO;
 using System.Text;
-using System.Numerics;
 
 class PscToCppConverter
 {
@@ -19,26 +18,40 @@ class PscToCppConverter
 
         foreach (XmlNode structDef in structDefs)
         {
-            string structName = structDef.Attributes["name"].Value;
+            string structName = structDef.Attributes["type"].Value;
             cppCode.AppendLine($"struct {structName}");
             cppCode.AppendLine("{");
 
             foreach (XmlNode child in structDef.ChildNodes)
             {
+                string memberType = child.Name;
+                string memberName = child.Attributes["name"]?.Value;
+
                 if (child.Name == "array")
                 {
-                    string arrayType = child.Attributes["type"].Value;
-                    string memberName = child.Attributes["name"].Value;
-
-                    XmlNode structNode = child.ChildNodes[0];
-                    string arrayElementTypeName = structNode.Attributes["type"].Value;
-                    
-                    cppCode.AppendLine($"    {arrayType}<{arrayElementTypeName}> {memberName};");
+                    if (child.Attributes["size"] != null)
+                    {
+                        string size = child.Attributes["size"].Value;
+                        string arrayElementType = child.FirstChild.Name;
+                        cppCode.AppendLine($"    {arrayElementType} {memberName}[{size}];");
+                    }
+                    else
+                    {
+                        string arrayType = child.Attributes["type"].Value;
+                        string arrayElementTypeName = child.FirstChild.Attributes["type"].Value;
+                        cppCode.AppendLine($"    {arrayType}<{arrayElementTypeName}> {memberName};");
+                    }
                 }
-                else
+                else if (memberType == "struct" || memberType == "string")
                 {
-                    string memberType = child.Name;
-                    string memberName = child.Attributes["name"].Value;
+                    if (child.Attributes["type"] != null)
+                    {
+                        memberType = child.Attributes["type"].Value;
+                    }
+                    cppCode.AppendLine($"    {memberType} {memberName};");
+                }
+                else if (memberName != null)
+                {
                     cppCode.AppendLine($"    {memberType} {memberName};");
                 }
             }
